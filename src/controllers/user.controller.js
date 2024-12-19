@@ -105,4 +105,12 @@ res
 })
 
 
-export { Register}
+const logIn = asyncHandler (async (req,res,next) =>{
+
+    res.status(200)
+    .json(
+        new APIResponse("User LoggedIn", {} , 203)
+    )
+})
+
+export { Register , logIn}
