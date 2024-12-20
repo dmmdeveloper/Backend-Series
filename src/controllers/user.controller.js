@@ -13,6 +13,25 @@ const userSchema  = z.object({
     password:z.string().min(6 , { message:"Password At least 6 letters"})
 })
 
+const generateAccessTokenAndRefreshToken = async (userId)=>{
+    try {
+
+const findUser = await User.findById(userId)
+
+const accessToken = await findUser.generateAccessToken();
+const refreshToken = await findUser.generateRefreshToken();
+
+findUser.refreshToken = refreshToken;
+await findUser.save();
+
+
+return { accessToken , refreshToken}
+        
+    } catch (error) {
+        throw new APIError("Error When Generate Access And RefreshToken :)" , 504)
+        
+    }
+}
 
 
 
@@ -105,12 +124,101 @@ res
 })
 
 
+
+const zodLoginSchema = z.object({
+    email: z.string().email({message:"Invalid Email Address"}),
+    password: z.string().min(6 ,{ message:"Password At least 6 letters"})
+
+})
+
 const logIn = asyncHandler (async (req,res,next) =>{
+console.log(req.url);
+// get Data 
+// empty Valdiation
+// zod Validation
+// findUser
+// check Password
+// access And Refreshtoken
+// return cookie
+
+
+const {email,password}= req.body;
+console.log(email ,password);
+
+const requiredFields  = ["email", "password"]
+for(let field of requiredFields){
+    if(!req.body[field]){
+
+        throw new APIError(`${field} is Required :)` , 403)
+    }
+}
+
+
+const zodValidation  = zodLoginSchema.safeParse({email,password})
+
+const zodValidationmessages = zodValidation?.error?.errors.map((m) => m.message + "\n") || null;
+
+if(zodValidationmessages){
+    throw new APIError(zodValidationmessages,403)
+}
+console.log(zodValidationmessages);
+const findUser = await User.findOne({email})
+if(!findUser){
+    throw new APIError("User not Registred :) " , 403)
+}
+
+const isPasswordValid = await findUser.isPasswordCorrect(password)
+console.log(isPasswordValid);
+
+
+
+const {accessToken ,refreshToken} = await generateAccessTokenAndRefreshToken(findUser._id)
+
+const LoggedInUser = await User.findById(findUser._id).select("-password -refreshToken")
+
+
+
+const options = {
+    httpOnly : true,
+    secure: true
+}
 
     res.status(200)
+    .cookie("accessToken", accessToken , options)
+    .cookie("refrehToken", refreshToken, options)
     .json(
-        new APIResponse("User LoggedIn", {} , 203)
+        new APIResponse("User LoggedIn", LoggedInUser , 203)
     )
 })
 
-export { Register , logIn}
+const logOut = asyncHandler ( async (req,res,next)=>{
+    console.log(req.url);
+const userId  = await req.user._id;    
+
+await User.findByIdAndUpdate(userId ,{
+$unset:{
+    refreshToken:""
+}
+},
+{
+    new:true
+}
+)
+
+const options = {
+    httpOnly:true,
+    secure:true
+}
+    res
+    .status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refrehToken", options)
+    .json(
+        new APIResponse("User Logged Out Success Fully" , {}  , 203)
+    )
+    
+})
+
+
+
+export { Register , logIn ,logOut }
