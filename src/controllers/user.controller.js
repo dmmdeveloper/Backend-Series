@@ -131,7 +131,7 @@ const zodLoginSchema = z.object({
 
 })
 
-const logIn = asyncHandler (async (req,res,next) =>{
+const logIn = asyncHandler (async (req,res,_) =>{
 console.log(req.url);
 // get Data 
 // empty Valdiation
@@ -191,7 +191,7 @@ const options = {
     )
 })
 
-const logOut = asyncHandler ( async (req,res,next)=>{
+const logOut = asyncHandler ( async (req,res,_)=>{
     console.log(req.url);
 const userId  = await req.user._id;    
 
